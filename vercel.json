@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "",
+  "buildCommand": "echo Building static frontend",
+  "outputDirectory": "static",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://tubegrab-jaggu-max-api.onrender.com/api/:path*"
+    }
+  ]
+}
