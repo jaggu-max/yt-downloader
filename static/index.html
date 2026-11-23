@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tubegrab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { theme: { extend: {
+  fontFamily: { sans: ['"Bricolage Grotesque"', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+  colors: { ink: '#12101a', panel: '#1b1826', line: '#2e2a45', mute: '#9a94b3', accent: '#8ea2ff', ok: '#6ee7b7', err: '#ff7a8a' }
+}}};
+</script>
+<style>
+  body { background: #12101a; }
+  .bar-fill { transition: width .35s ease; }
+  .active .bar-fill { background-image: linear-gradient(110deg, #8ea2ff 40%, #c4cfff 50%, #8ea2ff 60%); background-size: 200% 100%; animation: sheen 1.6s linear infinite; }
+  @keyframes sheen { to { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) { .active .bar-fill { animation: none; } .bar-fill { transition: none; } }
+  .mode { padding: .5rem 1.4rem; border-radius: .6rem; font-weight: 600; color: #9a94b3; }
+  .mode[aria-pressed="true"] { background: #8ea2ff; color: #12101a; }
+  select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%239a94b3' stroke-width='2'%3E%3Cpath d='m3 6 5 5 5-5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
+</style>
+</head>
+<body class="min-h-screen font-sans text-slate-100 antialiased">
+<main class="mx-auto w-full max-w-2xl px-5 py-14 sm:py-20">
+
+  <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight leading-[1.05]">Paste a link.<br>Pick a quality.<br>Save the file.</h1>
+  <p class="mt-4 text-mute max-w-md">Download YouTube videos as MP4 up to 4K, or save just the audio as M4A or MP3.</p>
+
+  <div id="ffwarn" class="hidden mt-6 rounded-xl border border-err/40 bg-err/10 px-4 py-3 text-sm text-err">FFmpeg wasn’t found on this machine. Merging and MP3 conversion won’t work until you install it.</div>
+
+  <div class="mt-10 flex flex-col sm:flex-row gap-3">
+    <input id="url" type="url" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off"
+      class="flex-1 rounded-xl bg-panel border border-line px-4 py-3.5 placeholder:text-mute/70 focus:outline-none focus:ring-2 focus:ring-accent">
+    <button id="fetchBtn" class="rounded-xl bg-accent text-ink font-semibold px-6 py-3.5 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-white disabled:opacity-50 disabled:cursor-not-allowed">Fetch</button>
+  </div>
+
+  <div id="error" role="alert" class="hidden mt-4 rounded-xl border border-err/40 bg-err/10 px-4 py-3 text-sm text-err flex justify-between gap-4">
+    <span id="errText"></span><button id="errClose" aria-label="Dismiss" class="shrink-0 hover:text-white">✕</button>
+  </div>
+
+  <section id="preview" class="hidden mt-8 rounded-2xl bg-panel border border-line overflow-hidden">
+    <div class="relative">
+      <img id="thumb" alt="" class="w-full aspect-video object-cover">
+      <span id="dur" class="absolute bottom-3 right-3 rounded-md bg-black/75 px-2 py-0.5 text-sm font-semibold tabular-nums"></span>
+    </div>
+    <div class="p-5 sm:p-6">
+      <h2 id="title" class="text-xl font-semibold leading-snug"></h2>
+      <p id="channel" class="mt-1 text-mute text-sm"></p>
+
+      <div role="group" aria-label="Download type" class="mt-6 inline-flex rounded-xl bg-ink border border-line p-1">
+        <button class="mode" data-mode="video" aria-pressed="true">Video</button>
+        <button class="mode" data-mode="audio" aria-pressed="false">Audio only</button>
+      </div>
+
+      <div class="mt-4 flex flex-col sm:flex-row gap-3">
+        <select id="format" aria-label="Quality" class="flex-1 rounded-xl bg-ink border border-line px-4 py-3.5 pr-10 focus:outline-none focus:ring-2 focus:ring-accent"></select>
+        <button id="dlBtn" class="rounded-xl bg-white text-ink font-semibold px-6 py-3.5 hover:bg-slate-200 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50 disabled:cursor-not-allowed">Download</button>
+      </div>
+
+      <div id="prog" class="hidden mt-6">
+        <div class="flex justify-between text-sm mb-2">
+          <span id="status" class="font-medium"></span>
+          <span id="pct" class="tabular-nums text-mute">0%</span>
+        </div>
+        <div id="track" class="h-3 rounded-full bg-ink border border-line overflow-hidden active">
+          <div id="fill" class="bar-fill h-full rounded-full bg-accent" style="width:0%"></div>
+        </div>
+        <div class="mt-2 flex justify-between text-xs text-mute tabular-nums">
+          <span id="speed">&nbsp;</span><span id="eta"></span>
+        </div>
+        <a id="save" class="hidden mt-5 block text-center rounded-xl bg-ok text-ink font-semibold px-6 py-3.5 hover:brightness-110">Save file</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let es = null, formats = { video: [], audio: [] }, mode = 'video';
+
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.mode').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === m));
+  $('format').innerHTML = '';
+  formats[m].forEach(f => { const o = document.createElement('option'); o.value = f.id; o.textContent = f.label; $('format').appendChild(o); });
+}
+document.querySelectorAll('.mode').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+
+const showError = msg => { $('errText').textContent = msg; $('error').classList.remove('hidden'); };
+const clearError = () => $('error').classList.add('hidden');
+$('errClose').onclick = clearError;
+
+async function api(path, body) {
+  const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.detail || 'Request failed.');
+  return data;
+}
+
+fetch('/api/health').then(r => r.json()).then(h => { if (!h.ffmpeg) $('ffwarn').classList.remove('hidden'); }).catch(() => {});
+
+async function fetchInfo() {
+  const url = $('url').value.trim();
+  clearError();
+  if (!url) return showError('Paste a YouTube link first.');
+  if (es) es.close();
+  $('preview').classList.add('hidden');
+  $('fetchBtn').disabled = true; $('fetchBtn').textContent = 'Fetching…';
+  try {
+    const d = await api('/api/info', { url });
+    $('thumb').src = d.thumbnail || '';
+    $('title').textContent = d.title;
+    $('channel').textContent = d.channel || '';
+    $('dur').textContent = d.duration;
+    formats = d; setMode(mode);
+    $('prog').classList.add('hidden'); $('save').classList.add('hidden');
+    $('dlBtn').disabled = false;
+    $('preview').classList.remove('hidden');
+  } catch (e) { showError(e.message); }
+  $('fetchBtn').disabled = false; $('fetchBtn').textContent = 'Fetch';
+}
+
+function render(p) {
+  $('status').textContent = p.status || '';
+  $('pct').textContent = Math.round(p.percent || 0) + '%';
+  $('fill').style.width = (p.percent || 0) + '%';
+  $('speed').textContent = p.speed || '\u00a0';
+  $('eta').textContent = p.eta ? 'ETA ' + p.eta : '';
+}
+
+async function startDownload() {
+  clearError();
+  $('dlBtn').disabled = true;
+  $('save').classList.add('hidden');
+  $('prog').classList.remove('hidden');
+  $('track').classList.add('active');
+  render({ percent: 0, status: 'Starting…' });
+  try {
+    const { job_id } = await api('/api/download', { url: $('url').value.trim(), format: $('format').value });
+    es = new EventSource('/api/progress/' + job_id);
+    es.onmessage = ev => {
+      const p = JSON.parse(ev.data);
+      render(p);
+      if (p.state === 'done') {
+        es.close(); $('track').classList.remove('active');
+        $('save').href = '/api/file/' + job_id;
+        $('save').setAttribute('download', p.filename || '');
+        $('save').classList.remove('hidden');
+        $('dlBtn').disabled = false;
+        window.location.href = '/api/file/' + job_id; // start the browser download
+      } else if (p.state === 'error') {
+        es.close(); $('prog').classList.add('hidden'); $('dlBtn').disabled = false;
+        showError(p.error || 'Download failed.');
+      }
+    };
+    es.onerror = () => { es.close(); };
+  } catch (e) { $('prog').classList.add('hidden'); $('dlBtn').disabled = false; showError(e.message); }
+}
+
+$('fetchBtn').onclick = fetchInfo;
+$('url').addEventListener('keydown', e => { if (e.key === 'Enter') fetchInfo(); });
+$('dlBtn').onclick = startDownload;
+</script>
+</body>
+</html>
