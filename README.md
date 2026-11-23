@@ -27,8 +27,8 @@ Open http://127.0.0.1:8000. The server prints `FFmpeg: <path>` on startup, and t
 The repository includes automatic-deploy configuration for Render and Vercel:
 
 1. Connect this repository to Render and create a Blueprint from `render.yaml`. Render's Python runtime includes FFmpeg, runs the FastAPI service, and redeploys when commits are pushed.
-2. Connect the same repository to Vercel using the repository root as the project root. Vercel serves the `static/` frontend and redeploys on pushes; its `/api/*` rewrite forwards requests to the Render service.
-3. If Render assigns a different service URL, update the API rewrite destination in `vercel.json` before deploying Vercel.
+2. Connect the same repository to Vercel with root directory `.` and framework preset **Other**. Vercel serves the `static/` frontend and redeploys on pushes; its `/api/*` rewrite forwards requests to `https://yt-downloader-vobq.onrender.com`.
+3. This frontend is plain HTML/JavaScript, not a Vite app, so no `VITE_API_URL` environment variable is needed. If the Render URL changes, update the API rewrite destination in `vercel.json`.
 
 Render hosts the backend because download jobs and progress are held in process memory and files are temporary; those endpoints are not compatible with Vercel's independent serverless invocations. The Vercel deployment therefore relies on the Render service being available.
 

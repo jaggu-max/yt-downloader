@@ -7,7 +7,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://tubegrab-jaggu-max-api.onrender.com/api/:path*"
+      "destination": "https://yt-downloader-vobq.onrender.com/api/:path*"
     }
   ]
 }
