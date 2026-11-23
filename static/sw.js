@@ -1,8 +1,9 @@
-const CACHE_VERSION = 'tubegrab-v1';
+const CACHE_VERSION = 'tubegrab-v2';
 const APP_SHELL = [
   '/',
   '/offline.html',
   '/manifest.webmanifest',
+  '/icons/instagram-profile.jpg',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/icon-maskable-192.png',
