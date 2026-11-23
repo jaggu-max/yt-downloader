@@ -45,8 +45,8 @@ def friendly(err) -> str:
         return "This video is age-restricted and can’t be downloaded without signing in."
     if "not a valid url" in m or "unsupported url" in m:
         return "That doesn’t look like a valid YouTube link."
-    if "sign in to confirm you" in m:
-        return "YouTube is asking for verification. Update yt-dlp (pip install -U yt-dlp) and try again."
+    if "sign in to confirm you" in m or "confirm you're not a bot" in m:
+        return "YouTube requires verification for this request. Updating yt-dlp may not resolve server-side challenges; try again later or use another publicly accessible video."
     if "unavailable" in m or "removed" in m or "terminated" in m:
         return "This video is unavailable. It may be deleted or blocked in your region."
     if "ffmpeg" in m:
