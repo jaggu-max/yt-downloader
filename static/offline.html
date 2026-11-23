@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#12101a">
+  <title>Tubegrab - Offline</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; background: #12101a; color: #f1f0f5; font: 16px system-ui, sans-serif; }
+    main { width: min(100%, 440px); padding: 32px; border: 1px solid #2e2a45; border-radius: 24px; background: #1b1826; text-align: center; }
+    img { width: 80px; height: 80px; border-radius: 20px; }
+    p { color: #9a94b3; line-height: 1.6; }
+    button { min-height: 48px; margin-top: 12px; padding: 0 24px; border: 0; border-radius: 12px; background: #8ea2ff; color: #12101a; font: inherit; font-weight: 700; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/icons/icon-192.png" alt="">
+    <h1>You’re offline</h1>
+    <p>Tubegrab’s app shell is saved on this device. Reconnect to look up videos and download files.</p>
+    <button type="button" onclick="location.reload()">Retry connection</button>
+  </main>
+</body>
+</html>

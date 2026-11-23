@@ -23,6 +23,13 @@ python main.py
 ```
 Open http://127.0.0.1:8000. The server prints `FFmpeg: <path>` on startup, and the UI shows a red banner if it is missing. You can also check `GET /api/health`.
 
+## Install as an app
+- Open the site in Chrome and use the Install app prompt or Chrome's install control.
+- On iPhone or iPad, open the site in Safari, tap Share, then choose **Add to Home Screen**.
+- The application shell and icons are cached for offline launch. Video lookup and downloads still require the app server and an internet connection.
+- Service workers and PWA installation require a secure context: use HTTPS in production. Browsers treat `localhost` as secure for local development.
+- Bump `CACHE_VERSION` in `static/sw.js` when changing the cache strategy or shell; activation removes older Tubegrab caches automatically.
+
 ## API
 | Method | Path | Purpose |
 |---|---|---|

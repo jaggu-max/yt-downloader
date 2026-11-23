@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tubegrab</title>
+<meta name="theme-color" content="#12101a">
+<meta name="description" content="Save YouTube videos as MP4 or audio as M4A and MP3.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tubegrab">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
@@ -16,6 +24,11 @@ tailwind.config = { theme: { extend: {
 </script>
 <style>
   body { background: #12101a; }
+  body { padding-bottom: env(safe-area-inset-bottom); }
+  button, a { touch-action: manipulation; }
+  main { animation: enter .28s ease-out both; }
+  @keyframes enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  @media (prefers-reduced-motion: reduce) { main { animation: none; } }
   .bar-fill { transition: width .35s ease; }
   .active .bar-fill { background-image: linear-gradient(110deg, #8ea2ff 40%, #c4cfff 50%, #8ea2ff 60%); background-size: 200% 100%; animation: sheen 1.6s linear infinite; }
   @keyframes sheen { to { background-position: -200% 0; } }
@@ -26,6 +39,31 @@ tailwind.config = { theme: { extend: {
 </style>
 </head>
 <body class="min-h-screen font-sans text-slate-100 antialiased">
+<div id="offlineNotice" role="status" aria-live="polite" class="hidden fixed z-50 inset-x-4 bottom-4 mx-auto max-w-lg rounded-2xl border border-line bg-panel p-4 shadow-2xl sm:bottom-6">
+  <div class="flex items-center justify-between gap-4">
+    <div>
+      <p id="offlineTitle" class="font-semibold">You’re offline</p>
+      <p id="offlineMessage" class="mt-1 text-sm text-mute">The app shell is cached. Video lookup and downloads need a connection.</p>
+    </div>
+    <button id="retryConnection" type="button" class="shrink-0 rounded-lg bg-accent px-4 py-2 font-semibold text-ink hover:brightness-110">Retry</button>
+  </div>
+</div>
+<div id="installPrompt" class="hidden fixed inset-0 z-[60] flex items-end justify-center bg-black/70 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="installTitle">
+  <div class="w-full max-w-sm rounded-2xl border border-line bg-panel p-6 shadow-2xl">
+    <div class="flex items-center gap-4">
+      <img src="/icons/icon-192.png" alt="" width="56" height="56" class="rounded-xl">
+      <div>
+        <h2 id="installTitle" class="text-xl font-bold">Install Tubegrab</h2>
+        <p class="mt-1 text-sm text-mute">Your video and audio downloader, ready from your home screen.</p>
+      </div>
+    </div>
+    <p id="installInstructions" class="mt-4 hidden text-sm leading-relaxed text-mute">To install on iPhone or iPad, tap the Share button in Safari, then choose <span class="font-semibold text-slate-100">Add to Home Screen</span>.</p>
+    <div class="mt-6 flex gap-3">
+      <button id="installButton" type="button" class="flex-1 rounded-xl bg-accent px-4 py-3 font-semibold text-ink hover:brightness-110">Install app</button>
+      <button id="dismissInstall" type="button" class="rounded-xl border border-line px-4 py-3 font-semibold text-mute hover:text-white">Not now</button>
+    </div>
+  </div>
+</div>
 <main class="mx-auto w-full max-w-2xl px-5 py-14 sm:py-20">
 
   <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight leading-[1.05]">Paste a link.<br>Pick a quality.<br>Save the file.</h1>
@@ -201,6 +239,94 @@ $('thumbDlBtn').onclick = async () => {
     button.disabled = false;
   }
 };
+
+let deferredInstallPrompt = null;
+let isIosInstall = false;
+let installPromptDismissed = false;
+const installedApp = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const installPanel = $('installPrompt');
+
+function showInstallPrompt() {
+  if (!installedApp && !installPromptDismissed) installPanel.classList.remove('hidden');
+}
+
+function hideInstallPrompt() {
+  installPanel.classList.add('hidden');
+}
+
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  isIosInstall = false;
+  showInstallPrompt();
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  hideInstallPrompt();
+});
+
+$('installButton').onclick = async () => {
+  if (isIosInstall) {
+    $('installInstructions').classList.remove('hidden');
+    $('installButton').textContent = 'Got it';
+    $('installButton').onclick = hideInstallPrompt;
+    return;
+  }
+  if (!deferredInstallPrompt) {
+    hideInstallPrompt();
+    return;
+  }
+  await deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  hideInstallPrompt();
+};
+
+$('dismissInstall').onclick = () => {
+  installPromptDismissed = true;
+  hideInstallPrompt();
+};
+
+const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (isIos && !installedApp) {
+  isIosInstall = true;
+  $('installButton').textContent = 'How to install';
+  showInstallPrompt();
+}
+
+const offlineNotice = $('offlineNotice');
+async function checkConnection() {
+  if (!navigator.onLine) {
+    $('offlineTitle').textContent = 'You’re offline';
+    $('offlineMessage').textContent = 'The app shell is cached. Video lookup and downloads need a connection.';
+    offlineNotice.classList.remove('hidden');
+    return;
+  }
+  try {
+    const response = await fetch('/api/health', { cache: 'no-store' });
+    if (!response.ok) throw new Error('App server unavailable');
+    offlineNotice.classList.add('hidden');
+  } catch {
+    $('offlineTitle').textContent = 'Connection unavailable';
+    $('offlineMessage').textContent = 'Cached app is available, but video lookup and downloads need the app server.';
+    offlineNotice.classList.remove('hidden');
+  }
+}
+
+window.addEventListener('offline', checkConnection);
+window.addEventListener('online', checkConnection);
+$('retryConnection').onclick = checkConnection;
+checkConnection();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(error => {
+      console.error('Service worker registration failed:', error);
+    });
+  });
+}
 </script>
 </body>
 </html>
