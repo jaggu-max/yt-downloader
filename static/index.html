@@ -47,6 +47,12 @@ tailwind.config = { theme: { extend: {
     <div class="relative">
       <img id="thumb" alt="" class="w-full aspect-video object-cover">
       <span id="dur" class="absolute bottom-3 right-3 rounded-md bg-black/75 px-2 py-0.5 text-sm font-semibold tabular-nums"></span>
+      <button id="thumbDlBtn" type="button" aria-label="Download thumbnail" title="Download thumbnail"
+        class="absolute bottom-3 left-3 grid h-10 w-10 place-items-center rounded-lg bg-black/75 text-white shadow-lg hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path>
+        </svg>
+      </button>
     </div>
     <div class="p-5 sm:p-6">
       <h2 id="title" class="text-xl font-semibold leading-snug"></h2>
@@ -165,6 +171,36 @@ async function startDownload() {
 $('fetchBtn').onclick = fetchInfo;
 $('url').addEventListener('keydown', e => { if (e.key === 'Enter') fetchInfo(); });
 $('dlBtn').onclick = startDownload;
+$('thumbDlBtn').onclick = async () => {
+  clearError();
+  const button = $('thumbDlBtn');
+  button.disabled = true;
+  try {
+    const r = await fetch('/api/thumbnail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: $('url').value.trim() })
+    });
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}));
+      throw new Error(data.detail || 'Thumbnail download failed.');
+    }
+    const blob = await r.blob();
+    const disposition = r.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = match ? match[1] : 'thumbnail.jpg';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    button.disabled = false;
+  }
+};
 </script>
 </body>
 </html>

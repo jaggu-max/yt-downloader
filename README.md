@@ -27,6 +27,7 @@ Open http://127.0.0.1:8000. The server prints `FFmpeg: <path>` on startup, and t
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/info` | `{url}` returns title, thumbnail, channel, duration, `video` and `audio` format lists |
+| POST | `/api/thumbnail` | `{url}` downloads the video's thumbnail image |
 | POST | `/api/download` | `{url, format}` (`"1080"`, `"2160"`, `"audio-best"`, `"mp3-320"`...) returns `{job_id}` |
 | GET | `/api/progress/{job_id}` | SSE stream: percent, speed, ETA, status |
 | GET | `/api/file/{job_id}` | Serves the file, then deletes it |

@@ -2,6 +2,7 @@
 import asyncio, json, re, shutil, threading, time, uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.request import urlopen
 
 import yt_dlp
 from fastapi import FastAPI, HTTPException
@@ -95,6 +96,10 @@ class InfoReq(BaseModel):
 class DownloadReq(BaseModel):
     url: str
     format: str  # "2160", "1080", ... or "mp3"
+
+
+class ThumbnailReq(BaseModel):
+    url: str
 
 
 @app.get("/api/health")
@@ -195,6 +200,43 @@ async def download(req: DownloadReq):
                     "error": None, "filename": None, "path": None, "created": time.time()}
     threading.Thread(target=run_job, args=(job_id, url, req.format), daemon=True).start()
     return {"job_id": job_id}
+
+
+@app.post("/api/thumbnail")
+async def download_thumbnail(req: ThumbnailReq):
+    url = req.url.strip()
+    if not YT_RE.match(url):
+        raise HTTPException(400, "That doesn’t look like a valid YouTube link.")
+    try:
+        data = await asyncio.to_thread(_extract, url)
+        thumbnail_url = data.get("thumbnail")
+        if not thumbnail_url:
+            raise RuntimeError("Thumbnail not available")
+
+        def save_thumbnail():
+            with urlopen(thumbnail_url, timeout=20) as response:
+                content_type = response.headers.get_content_type()
+                image = response.read()
+            extension = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}.get(content_type, ".jpg")
+            job_id = uuid.uuid4().hex
+            path = DOWNLOADS / f"{job_id}{extension}"
+            path.write_bytes(image)
+            return job_id, path
+
+        job_id, path = await asyncio.to_thread(save_thumbnail)
+        safe = re.sub(r'[\\/:*?"<>|]+', "", data.get("title") or "thumbnail").strip()[:120] or "thumbnail"
+
+        def cleanup():
+            path.unlink(missing_ok=True)
+
+        return FileResponse(path, filename=f"{safe}-thumbnail{path.suffix}",
+                            background=BackgroundTask(cleanup),
+                            media_type={".jpg": "image/jpeg", ".png": "image/png",
+                                        ".webp": "image/webp"}[path.suffix])
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(400, friendly(e))
 
 
 @app.get("/api/progress/{job_id}")
